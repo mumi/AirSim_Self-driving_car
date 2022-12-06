@@ -56,11 +56,8 @@ class KalmanFilter:
         # 3. Define the system matrix
         # ****************************************************************
         # TODO: Define, with the motion model of your car, the system matrix.
-        # self.A = np.array([[1, delta_seconds, 1 / 2. * delta_seconds ** 2],
-        #                    [0, 1, delta_seconds],
-        #                    [0, 0, 1]])
-        self.A = np.array([[1.0, 0.0, delta_seconds, 0.0],
-                           [0.0, 1.0, 0.0, delta_seconds],
+        self.A = np.array([[1.0, self.delta_seconds, 1/2.*self.delta_seconds**2, 0.0],
+                           [0.0, 1.0, self.delta_seconds, 0.0],
                            [0.0, 0.0, 1.0, 0.0],
                            [0.0, 0.0, 0.0, 1.0]])
 
@@ -69,8 +66,6 @@ class KalmanFilter:
         # ****************************************************************
         # The R matrix indicates the inaccuracy of our measurement vector y.
         # TODO: Add the variance for the measurement noise of each sensor.
-        #self.R = np.diag([[gps_stddev_x ** 2, 0.0],
-                     #      [0.0, imu_stddev ** 2]])
         self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
         # ****************************************************************
         # 5. The process noise matrix
@@ -82,14 +77,17 @@ class KalmanFilter:
         # The Q matrix has the same dimension as the P and A matrix.
         # TODO: Test with different values. What influence does the Q-Matrix have on the estimation of the Kalman Filter?
         # TODO: Q = np.diag([variance for state1, variance for state2, ...])
-
-        self.Q = np.diag([0.0, 0.0, 0.0, 0.0])
+        noise = 0.1
+        self.Q = np.diag([noise**1/2.*self.delta_seconds**2,
+                          noise**1/2.*self.delta_seconds,
+                          noise**1/2.,
+                          noise])
         # ****************************************************************
         # 6. The initial error covariance matrix P
         # ****************************************************************
         # TODO: Determine the error of the initial state estimate.
         # TODO: dx = np.array([standard deviation from the first state, ...])
-        # dx = np.array([gps_stddev_x, gps_stddev_y, imu_stddev])
+
         dx = np.array([gps_stddev_x, gps_stddev_y, imu_stddev, imu_stddev])
         self.P = np.dot(dx.T, dx)
 
@@ -98,10 +96,7 @@ class KalmanFilter:
         # *****************************************************************
         # TODO: Determine how much the control_input changes each state vector component.
         # You can implement the Kalman filter at the beginning without the control input and the B matrix.
-        # self.B = np.array([[1 / 2. * delta_seconds ** 2],
-        #                    [delta_seconds],
-        #                    [1]])
-        # self.B = np.zeros((4, 2))
+        # self.B = np.array([[1 / 2. * delta_seconds ** 2], [delta_seconds], [1]])
 
         # Kalman matrix
         self.K = None
@@ -142,15 +137,6 @@ class KalmanFilter:
 
         # P = (I - K*C)*P
         self.P = np.dot((np.eye(4) - np.dot(self.K, self.C)), self.P)
-
-        # Prediction step of the kalman filter
-        #self.x = np.dot(self.A, self.x)
-        #self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
-
-        # Correction step of the kalman filter
-        #self.K = np.dot(np.dot(self.P, self.C.T), inv(np.dot(np.dot(self.C, self.P), self.C.T) + self.R))
-        #self.x = self.x + np.dot(self.K, (y - np.dot(self.C, self.x)))
-        #self.P = np.dot((np.eye(4) - np.dot(self.K, self.C)), self.P)
 
         # Return the updated state of the car
         return self.x
