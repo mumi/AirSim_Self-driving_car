@@ -80,7 +80,8 @@ class KalmanFilter:
         # self.R = np.diag([[gps_stddev_x ** 2, 0.0],
         #                   [0.0, imu_stddev ** 2]])
         if (sensors_used == "p_a"):
-             self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
+             #self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
+             self.R = np.eye(4)
         elif (sensors_used == "p"):
             self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2])
         elif (sensors_used == "a"):
@@ -105,13 +106,14 @@ class KalmanFilter:
         #                    [(delta_seconds ** 2) / 2, 0, delta_seconds, 0, 1, 0],
         #                    [0, (delta_seconds ** 2) / 2, 0, delta_seconds, 0, 1]]) * imu_stddev
         var_a = 0.1  # 0.0001  # process noise for acceleration
-        self.Q = np.diag(
-            [var_a * 1 / 2. * delta_seconds ** 2,
-             var_a * 1 / 2. * delta_seconds ** 2,
-             var_a * delta_seconds,
-             var_a * delta_seconds,
-             var_a,
-             var_a])
+        # self.Q = np.diag(
+        #     [var_a * 1 / 2. * delta_seconds ** 2,
+        #      var_a * 1 / 2. * delta_seconds ** 2,
+        #      var_a * delta_seconds,
+        #      var_a * delta_seconds,
+        #      var_a,
+        #      var_a])
+        self.Q = np.eye(6)
 
         # ****************************************************************
         # 6. The initial error covariance matrix P
@@ -195,7 +197,7 @@ class KalmanFilter:
 if __name__ == '__main__':
 
     manager = Manager()
-    sensors_used = "p"
+    sensors_used = "p_a"
     x = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T
     delta_seconds = 0.1
     gps_stddev_x = 0.1
