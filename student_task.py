@@ -1,11 +1,9 @@
-import airsim
+import numpy as np
 from airsim import Vector3r
-from typing import List
+from numpy import ndarray
+from numpy.linalg import inv
 
 from manager import Manager
-import numpy as np
-from numpy import dot, ndarray
-from numpy.linalg import inv
 
 
 class KalmanFilter:
@@ -45,12 +43,19 @@ class KalmanFilter:
         # 2. Define the output matrix C
         # ****************************************************************
         # TODO: Determine which states you measure with the sensors.
-        self.C = np.array([[1.0, 0.0, 0.0, 0.0 ,0.0 ,0.0],
-                           [0.0, 1.0, 0.0, 0.0 ,0.0 ,0.0],
-                           [0.0, 0.0, 0.0, 0.0 ,1.0 ,0.0],
-                           [0.0, 0.0, 0.0, 0.0 ,0.0 ,1.0]])
+        if sensors_used == "p_a":
+            self.C = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                               [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                               [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
+        elif sensors_used == "p":
+            self.C = np.array([[1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                               [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]])
+        elif sensors_used == "a":
+            self.C = np.array([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                               [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
 
-        #self.C = np.matrix([[1.0, 0.0, 0.0, 0.0],
+        # self.C = np.matrix([[1.0, 0.0, 0.0, 0.0],
         #                    [0.0, 1.0, 0.0, 0.0]])
 
         # ****************************************************************
@@ -60,25 +65,28 @@ class KalmanFilter:
         # self.A = np.array([[1, delta_seconds, 1 / 2. * delta_seconds ** 2],
         #                    [0, 1, delta_seconds],
         #                    [0, 0, 1]])
-        self.A = np.array([[1.0, 0.0,delta_seconds,0.0,1 / 2. * delta_seconds ** 2,0.0],
-                           [0.0, 1.0 ,0.0,delta_seconds, 0.0,1 / 2. * delta_seconds ** 2],
-                           [0.0, 0.0, 1.0, 0.0,delta_seconds, 0.0],
-                           [0.0, 0.0, 0.0, 1.0, 0.0,delta_seconds],
-                            [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
-                            [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
-
-
+        self.A = np.array([[1.0, 0.0, delta_seconds, 0.0, 1 / 2. * delta_seconds ** 2, 0.0],
+                           [0.0, 1.0, 0.0, delta_seconds, 0.0, 1 / 2. * delta_seconds ** 2],
+                           [0.0, 0.0, 1.0, 0.0, delta_seconds, 0.0],
+                           [0.0, 0.0, 0.0, 1.0, 0.0, delta_seconds],
+                           [0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                           [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
 
         # ****************************************************************
         # 4. Define the measurement noise covariance matrix.
         # ****************************************************************
         # The R matrix indicates the inaccuracy of our measurement vector y.
         # TODO: Add the variance for the measurement noise of each sensor.
-        #self.R = np.diag([[gps_stddev_x ** 2, 0.0],
+        # self.R = np.diag([[gps_stddev_x ** 2, 0.0],
         #                   [0.0, imu_stddev ** 2]])
-        self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
-        #self.R = np.diag([[gps_stddev_x ** 2, 0.0],
-                          #[0.0, gps_stddev_y ** 2]])
+        if (sensors_used == "p_a"):
+             self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
+        elif (sensors_used == "p"):
+            self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2])
+        elif (sensors_used == "a"):
+            self.R = np.diag([imu_stddev ** 2, imu_stddev ** 2])
+        # self.R = np.diag([[gps_stddev_x ** 2, 0.0],
+        # [0.0, gps_stddev_y ** 2]])
         # ****************************************************************
         # 5. The process noise matrix
         # ****************************************************************
@@ -89,20 +97,29 @@ class KalmanFilter:
         # The Q matrix has the same dimension as the P and A matrix.
         # TODO: Test with different values. What influence does the Q-Matrix have on the estimation of the Kalman Filter?
         # TODO: Q = np.diag([variance for state1, variance for state2, ...])
+        # self.Q = np.diag([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        # self.Q = np.array([[(delta_seconds ** 4) / 4, 0, (delta_seconds ** 3) / 2, 0, (delta_seconds ** 2) / 2, 0],
+        #                    [0, (delta_seconds ** 4) / 4, 0, (delta_seconds ** 3) / 2, 0, (delta_seconds ** 2) / 2],
+        #                    [(delta_seconds ** 3) / 2, 0, delta_seconds ** 2, 0, delta_seconds, 0],
+        #                    [0, (delta_seconds ** 3) / 2, 0, delta_seconds ** 2, 0, delta_seconds],
+        #                    [(delta_seconds ** 2) / 2, 0, delta_seconds, 0, 1, 0],
+        #                    [0, (delta_seconds ** 2) / 2, 0, delta_seconds, 0, 1]]) * imu_stddev
+        var_a = 0.1  # 0.0001  # process noise for acceleration
+        self.Q = np.diag(
+            [var_a * 1 / 2. * delta_seconds ** 2,
+             var_a * 1 / 2. * delta_seconds ** 2,
+             var_a * delta_seconds,
+             var_a * delta_seconds,
+             var_a,
+             var_a])
 
-        #self.Q = np.array([[(delta_seconds**4)/4, 0, (delta_seconds**3)/2, 0],
-        #                    [0, (delta_seconds**4)/4, 0, (delta_seconds**3)/2],
-        #                    [(delta_seconds**3)/2, 0, delta_seconds**2, 0],
-        #                    [0, (delta_seconds**3)/2, 0, delta_seconds**2]]) * imu_stddev**2
-        var_a = 0.1#0.0001  # process noise for acceleration
-        self.Q = np.diag([var_a * 1 / 2. * delta_seconds ** 2,var_a * 1 / 2. * delta_seconds ** 2,  var_a * delta_seconds, var_a * delta_seconds, var_a, var_a])
         # ****************************************************************
         # 6. The initial error covariance matrix P
         # ****************************************************************
         # TODO: Determine the error of the initial state estimate.
         # TODO: dx = np.array([standard deviation from the first state, ...])
         # dx = np.array([gps_stddev_x, gps_stddev_y, imu_stddev])
-        dx = np.array([gps_stddev_x, gps_stddev_y,gps_stddev_x**2, gps_stddev_y**2, imu_stddev, imu_stddev])
+        dx = np.array([[gps_stddev_x, gps_stddev_y, gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev, imu_stddev]])
         # 4x4
         self.P = np.dot(dx.T, dx)
 
@@ -111,13 +128,12 @@ class KalmanFilter:
         # *****************************************************************
         # TODO: Determine how much the control_input changes each state vector component.
         # You can implement the Kalman filter at the beginning without the control input and the B matrix.
-        self.B = np.array([[1 / 2. * delta_seconds ** 2,0.0],
-                            [0.0, 1 / 2. * delta_seconds ** 2],
-                            [delta_seconds,0.0],
-                            [0.0, delta_seconds],
-                            [1.0, 0.0],
-                            [0.0, 1.0]])
-
+        self.B = np.array([[1 / 2. * delta_seconds ** 2, 0.0],
+                           [0.0, 1 / 2. * delta_seconds ** 2],
+                           [delta_seconds, 0.0],
+                           [0.0, delta_seconds],
+                           [1.0, 0.0],
+                           [0.0, 1.0]])
 
         # self.B = np.zeros((4, 2))
 
@@ -142,12 +158,8 @@ class KalmanFilter:
 
         self.u = np.array([control_input[0][0], control_input[1][0]])
 
-        print(np.dot(self.A, self.x))
-        print(np.dot(self.B,self.u))
         # x = A*x + B*u
-        self.x = np.dot(self.A, self.x) + np.dot(self.B,self.u)
-
-
+        self.x = np.dot(self.A, self.x) + np.dot(self.B, self.u)
 
         # P = A*P*A.T + Q
         self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
@@ -164,17 +176,17 @@ class KalmanFilter:
         self.x = self.x + np.dot(self.K, (y - np.dot(self.C, self.x)))
 
         # P = (I - K*C)*P
-        self.P = np.dot((np.eye(6) - np.dot(self.K, self.C)), self.P)
-        #self.P = np.dot((np.eye(self.C.shape[1]) - np.dot(self.K, self.C)), self.P)
+        self.P = np.dot((np.eye(self.C.shape[1]) - np.dot(self.K, self.C)), self.P)
+        # self.P = np.dot((np.eye(self.C.shape[1]) - np.dot(self.K, self.C)), self.P)
 
         # Prediction step of the kalman filter
-        #self.x = np.dot(self.A, self.x)
-        #self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
+        # self.x = np.dot(self.A, self.x)
+        # self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
 
         # Correction step of the kalman filter
-        #self.K = np.dot(np.dot(self.P, self.C.T), inv(np.dot(np.dot(self.C, self.P), self.C.T) + self.R))
-        #self.x = self.x + np.dot(self.K, (y - np.dot(self.C, self.x)))
-        #self.P = np.dot((np.eye(4) - np.dot(self.K, self.C)), self.P)
+        # self.K = np.dot(np.dot(self.P, self.C.T), inv(np.dot(np.dot(self.C, self.P), self.C.T) + self.R))
+        # self.x = self.x + np.dot(self.K, (y - np.dot(self.C, self.x)))
+        # self.P = np.dot((np.eye(4) - np.dot(self.K, self.C)), self.P)
 
         # Return the updated state of the car
         return self.x
@@ -183,7 +195,7 @@ class KalmanFilter:
 if __name__ == '__main__':
 
     manager = Manager()
-
+    sensors_used = "p"
     x = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T
     delta_seconds = 0.1
     gps_stddev_x = 0.1
@@ -212,7 +224,15 @@ if __name__ == '__main__':
         control_input: ndarray = manager.get_control_input()
 
         # Build the current measurement vector
-        y: ndarray = np.array([gps_position.x_val, gps_position.y_val, imu_acceleration.x_val, imu_acceleration.y_val]).T
+        if sensors_used == "p_a":
+            y = np.array([gps_position.x_val, gps_position.y_val, imu_acceleration.x_val, imu_acceleration.y_val]).T
+        elif sensors_used == "p":
+            y = np.array([gps_position.x_val, gps_position.y_val]).T
+        elif sensors_used == "a":
+            y = np.array([imu_acceleration.x_val, imu_acceleration.y_val]).T
+        else:
+            print("Invalid sensor configuration")
+            break
 
         # Update the Kalman Filter
         x = kalman_filter.update(y, control_input)
@@ -220,4 +240,3 @@ if __name__ == '__main__':
         # Update car state
         # activ = manager.update(gps_position.x_val, gps_position.y_val, gps_velocity.x_val, gps_velocity.y_val)
         activ = manager.update(x[0], x[1], x[2], x[3])
-
