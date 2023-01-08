@@ -29,7 +29,6 @@ class KalmanFilter:
             gps_stddev_y: standard deviation of the y-coordinate of the GPS sensor
             imu_stddev: standard deviation of the acceleration sensor, that is inside the IMU
         """
-
         self.delta_seconds = delta_seconds
 
         # ****************************************************************
@@ -55,16 +54,10 @@ class KalmanFilter:
             self.C = np.array([[0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
                                [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]])
 
-        # self.C = np.matrix([[1.0, 0.0, 0.0, 0.0],
-        #                    [0.0, 1.0, 0.0, 0.0]])
-
         # ****************************************************************
         # 3. Define the system matrix
         # ****************************************************************
         # TODO: Define, with the motion model of your car, the system matrix.
-        # self.A = np.array([[1, delta_seconds, 1 / 2. * delta_seconds ** 2],
-        #                    [0, 1, delta_seconds],
-        #                    [0, 0, 1]])
         self.A = np.array([[1.0, 0.0, delta_seconds, 0.0, 1 / 2. * delta_seconds ** 2, 0.0],
                            [0.0, 1.0, 0.0, delta_seconds, 0.0, 1 / 2. * delta_seconds ** 2],
                            [0.0, 0.0, 1.0, 0.0, delta_seconds, 0.0],
@@ -77,17 +70,16 @@ class KalmanFilter:
         # ****************************************************************
         # The R matrix indicates the inaccuracy of our measurement vector y.
         # TODO: Add the variance for the measurement noise of each sensor.
-        # self.R = np.diag([[gps_stddev_x ** 2, 0.0],
-        #                   [0.0, imu_stddev ** 2]])
+        # Da es keine Korrelation zwischen den Messdaten gibt, macht eine Diagonale Matrix
+        # für die Kovarianzmatrix Sinn.
         if (sensors_used == "p_a"):
-             #self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
-             self.R = np.eye(4)
+            self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev ** 2, imu_stddev ** 2])
+            # self.R = np.eye(4)
         elif (sensors_used == "p"):
             self.R = np.diag([gps_stddev_x ** 2, gps_stddev_y ** 2])
         elif (sensors_used == "a"):
             self.R = np.diag([imu_stddev ** 2, imu_stddev ** 2])
-        # self.R = np.diag([[gps_stddev_x ** 2, 0.0],
-        # [0.0, gps_stddev_y ** 2]])
+
         # ****************************************************************
         # 5. The process noise matrix
         # ****************************************************************
@@ -98,31 +90,20 @@ class KalmanFilter:
         # The Q matrix has the same dimension as the P and A matrix.
         # TODO: Test with different values. What influence does the Q-Matrix have on the estimation of the Kalman Filter?
         # TODO: Q = np.diag([variance for state1, variance for state2, ...])
-        # self.Q = np.diag([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        # self.Q = np.array([[(delta_seconds ** 4) / 4, 0, (delta_seconds ** 3) / 2, 0, (delta_seconds ** 2) / 2, 0],
-        #                    [0, (delta_seconds ** 4) / 4, 0, (delta_seconds ** 3) / 2, 0, (delta_seconds ** 2) / 2],
-        #                    [(delta_seconds ** 3) / 2, 0, delta_seconds ** 2, 0, delta_seconds, 0],
-        #                    [0, (delta_seconds ** 3) / 2, 0, delta_seconds ** 2, 0, delta_seconds],
-        #                    [(delta_seconds ** 2) / 2, 0, delta_seconds, 0, 1, 0],
-        #                    [0, (delta_seconds ** 2) / 2, 0, delta_seconds, 0, 1]]) * imu_stddev
-        var_a = 0.1  # 0.0001  # process noise for acceleration
-        # self.Q = np.diag(
-        #     [var_a * 1 / 2. * delta_seconds ** 2,
-        #      var_a * 1 / 2. * delta_seconds ** 2,
-        #      var_a * delta_seconds,
-        #      var_a * delta_seconds,
-        #      var_a,
-        #      var_a])
-        self.Q = np.eye(6)
-
+        self.Q = np.diag(
+            [gps_stddev_x * 1 / 2. * delta_seconds ** 2,
+             gps_stddev_y * 1 / 2. * delta_seconds ** 2,
+             imu_stddev ** 2,
+             imu_stddev ** 2,
+             imu_stddev,
+             imu_stddev])
         # ****************************************************************
         # 6. The initial error covariance matrix P
         # ****************************************************************
         # TODO: Determine the error of the initial state estimate.
         # TODO: dx = np.array([standard deviation from the first state, ...])
-        # dx = np.array([gps_stddev_x, gps_stddev_y, imu_stddev])
         dx = np.array([[gps_stddev_x, gps_stddev_y, gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev, imu_stddev]])
-        # 4x4
+        # 6x6 Matrix
         self.P = np.dot(dx.T, dx)
 
         # *****************************************************************
@@ -137,7 +118,6 @@ class KalmanFilter:
                            [1.0, 0.0],
                            [0.0, 1.0]])
 
-        # self.B = np.zeros((4, 2))
 
         # Kalman matrix
         self.K = None
@@ -161,7 +141,7 @@ class KalmanFilter:
         self.u = np.array([control_input[0][0], control_input[1][0]])
 
         # x = A*x + B*u
-        self.x = np.dot(self.A, self.x) + np.dot(self.B, self.u)
+        self.x = np.dot(self.A, self.x) #+ np.dot(self.B, self.u)
 
         # P = A*P*A.T + Q
         self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
@@ -195,14 +175,13 @@ class KalmanFilter:
 
 
 if __name__ == '__main__':
-
     manager = Manager()
     sensors_used = "p_a"
     x = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T
-    delta_seconds = 0.1
-    gps_stddev_x = 0.1
-    gps_stddev_y = 0.1
-    imu_stddev = 0.1
+    delta_seconds = manager.get_time_difference()
+    gps_stddev_x = manager.get_gps_x_stddev()
+    gps_stddev_y = manager.get_gps_y_stddev()
+    imu_stddev = manager.get_imu_accelerator_stddev()
 
     kalman_filter = KalmanFilter(x, delta_seconds, gps_stddev_x, gps_stddev_y, imu_stddev)
 
