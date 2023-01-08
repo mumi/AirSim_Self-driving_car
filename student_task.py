@@ -120,9 +120,8 @@ class KalmanFilter:
         # ****************************************************************
         # TODO: Determine the error of the initial state estimate.
         # TODO: dx = np.array([standard deviation from the first state, ...])
-        # dx = np.array([gps_stddev_x, gps_stddev_y, imu_stddev])
         dx = np.array([[gps_stddev_x, gps_stddev_y, gps_stddev_x ** 2, gps_stddev_y ** 2, imu_stddev, imu_stddev]])
-        # 4x4
+        # 6x6
         self.P = np.dot(dx.T, dx)
 
         # *****************************************************************
